@@ -297,10 +297,10 @@ impl Parser<'_> {
                         ));
                     }
                     Ok(Node::Define(UserDefinedFunction::new(
-                        token.clone(),
+                        token,
                         params,
-                        ret.clone(),
-                        stmts.clone(),
+                        ret,
+                        stmts,
                     )))
                 } else {
                     let (params, ret) = match scope.find(&self.current) {

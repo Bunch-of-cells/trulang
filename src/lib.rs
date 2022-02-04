@@ -7,7 +7,7 @@ mod lexer;
 mod parser;
 
 const KEYWORDS: [&str; 1] = ["Int"];
-const DEFINED_WORDS: [BuiltInFunction; 5] = [
+static DEFINED_WORDS: [BuiltInFunction; 5] = [
     BuiltInFunction::new("+", &[Type::Number, Type::Number], Type::Number),
     BuiltInFunction::new("-", &[Type::Number, Type::Number], Type::Number),
     BuiltInFunction::new("*", &[Type::Number, Type::Number], Type::Number),

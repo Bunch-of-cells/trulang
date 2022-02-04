@@ -1,9 +1,6 @@
 use std::fmt;
 
-use crate::{
-    lexer::{Token, TokenType},
-    parser::Node,
-};
+use crate::{lexer::Token, parser::Node};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserDefinedFunction {
