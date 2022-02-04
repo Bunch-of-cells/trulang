@@ -54,7 +54,7 @@ fn inner_interpret(ast: &Node, functions: &mut Vec<UserDefinedFunction>) -> Resu
             for arg in args {
                 new_args.push(arg?);
             }
-            let ret = if let Some(func) = functions.iter().find(|f| f.name() == func) {
+            let ret = if let Some(func) = functions.iter().rev().find(|f| f.name() == func) {
                 let mut ret = Value::None;
                 for statement in &func.body().clone() {
                     ret = inner_interpret(statement, functions)?;

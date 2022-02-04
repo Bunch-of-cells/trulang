@@ -1,5 +1,3 @@
-use std::fs;
-
 use functions::{BuiltInFunction, Type};
 
 mod error;
@@ -17,8 +15,8 @@ const DEFINED_WORDS: [BuiltInFunction; 5] = [
     BuiltInFunction::new(".", &[Type::Number], Type::None),
 ];
 
-pub fn run(file: &str) -> Result<(), error::Error> {
-    let tokens = lexer::lex(&fs::read_to_string(file).unwrap(), file.to_string());
+pub fn run(contents: &str, file: &str) -> Result<(), error::Error> {
+    let tokens = lexer::lex(contents, file.to_string());
     // println!(
     //     "{:?}",
     //     tokens.iter().map(|t| (**t).clone()).collect::<Vec<_>>()

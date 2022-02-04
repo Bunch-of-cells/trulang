@@ -1,3 +1,6 @@
+use std::fs;
+
 fn main() {
-    trulang::run("c.tru").unwrap_or_else(|err| println!("{}", err));
+    trulang::run(&fs::read_to_string("std.tru").unwrap(), "std.tru")
+        .unwrap_or_else(|err| println!("{}", err));
 }

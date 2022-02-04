@@ -87,7 +87,7 @@ impl Scope {
     }
 
     fn find(&self, function: &Token) -> Option<(&[Type], &Type)> {
-        match self.defined.iter().find(|(f, _, _)| f == function) {
+        match self.defined.iter().rev().find(|(f, _, _)| f == function) {
             Some((_, p, r)) => Some((p, r)),
             None => DEFINED_WORDS
                 .iter()
@@ -122,6 +122,54 @@ impl Parser<'_> {
         self.index += 1;
         if let Some(token) = self.tokens.get(self.index) {
             self.current = token.clone()
+        }
+    }
+
+    fn make_type(&mut self) -> Result<Type, Error> {
+        match *self.current {
+            TokenType::Keyword(ref s) => match s.as_str() {
+                "Int" => {
+                    self.advance();
+                    Ok(Type::Number)
+                }
+                _ => Err(Error::new(
+                    ErrorType::SyntaxError,
+                    self.current.position().clone(),
+                    format!("Expected type, found {}", s),
+                )),
+            },
+            TokenType::RBracket => {
+                let mut params = vec![];
+                while *self.current != TokenType::CurlyArrow {
+                    if *self.current != TokenType::RBracket {
+                        return Err(Error::new(
+                            ErrorType::SyntaxError,
+                            self.current.position().clone(),
+                            "Expected ']'".to_string(),
+                        ));
+                    }
+                    self.advance();
+                    let t = self.make_type()?;
+                    if *self.current != TokenType::LBracket {
+                        return Err(Error::new(
+                            ErrorType::SyntaxError,
+                            self.current.position().clone(),
+                            "Expected '['".to_string(),
+                        ));
+                    }
+                    self.advance();
+                    params.push(t);
+                }
+                self.advance();
+                params.push(self.make_type()?);
+                self.advance();
+                Ok(Type::Function(params))
+            }
+            _ => Err(Error::new(
+                ErrorType::SyntaxError,
+                self.current.position().clone(),
+                "Expected parameter type".to_string(),
+            )),
         }
     }
 
@@ -164,24 +212,7 @@ impl Parser<'_> {
                             ));
                         }
                         self.advance();
-                        if !matches!(*self.current, TokenType::Keyword(_)) {
-                            return Err(Error::new(
-                                ErrorType::SyntaxError,
-                                self.current.position().clone(),
-                                "Expected parameter type".to_string(),
-                            ));
-                        }
-                        let type_ = match Type::from_token(&self.current) {
-                            Some(t) => t,
-                            None => {
-                                return Err(Error::new(
-                                    ErrorType::SyntaxError,
-                                    self.current.position().clone(),
-                                    "Expected parameter type".to_string(),
-                                ))
-                            }
-                        };
-                        self.advance();
+                        let type_ = self.make_type()?;
                         if *self.current != TokenType::RBracket {
                             return Err(Error::new(
                                 ErrorType::SyntaxError,
@@ -222,24 +253,7 @@ impl Parser<'_> {
                                 ));
                             }
                             self.advance();
-                            if !matches!(*self.current, TokenType::Keyword(_)) {
-                                return Err(Error::new(
-                                    ErrorType::SyntaxError,
-                                    self.current.position().clone(),
-                                    "Expected parameter type".to_string(),
-                                ));
-                            }
-                            ret = Some(match Type::from_token(&self.current) {
-                                Some(t) => t,
-                                None => {
-                                    return Err(Error::new(
-                                        ErrorType::SyntaxError,
-                                        self.current.position().clone(),
-                                        "Expected parameter type".to_string(),
-                                    ))
-                                }
-                            });
-                            self.advance();
+                            ret = Some(self.make_type()?);
                             if *self.current != TokenType::RBracket {
                                 return Err(Error::new(
                                     ErrorType::SyntaxError,

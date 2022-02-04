@@ -69,22 +69,11 @@ impl BuiltInFunction {
 pub enum Type {
     Number,
     None,
+    Function(Vec<Type>),
 }
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-impl Type {
-    pub fn from_token(token: &Token) -> Option<Type> {
-        match **token {
-            TokenType::Keyword(ref s) => match s.as_str() {
-                "Int" => Some(Type::Number),
-                _ => None,
-            },
-            _ => panic!("Type::from_token: invalid token"),
-        }
     }
 }
