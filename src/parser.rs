@@ -191,7 +191,7 @@ impl Parser<'_> {
 
     fn expression(&mut self, scope: &mut Scope) -> ParseResult {
         let token = self.current.clone();
-        let node = match *self.current {
+        match *self.current {
             TokenType::Number(_) => {
                 self.advance();
                 Ok(Node::Number(token))
@@ -334,8 +334,7 @@ impl Parser<'_> {
                 self.current.position().clone(),
                 format!("Unexpected token: {}", self.current),
             )),
-        }?;
-        Ok(node)
+        }
     }
 }
 
