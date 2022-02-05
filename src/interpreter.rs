@@ -1,63 +1,37 @@
-use std::fmt;
+use std::collections::HashMap;
 
 use crate::{
     error::{Error, ErrorType},
-    functions::UserDefinedFunction,
-    lexer::{Token, TokenType},
-    parser::Node,
+    node::Node,
+    token::{Token, TokenType},
+    value::Value,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Number(f64),
-    None,
-}
-
-impl Value {
-    fn from_token(token: &Token) -> Value {
-        match **token {
-            TokenType::Number(n) => Value::Number(n),
-            _ => panic!("Invalid token type for value"),
-        }
-    }
-
-    fn get_number(&self) -> f64 {
-        match self {
-            Value::Number(n) => *n,
-            _ => panic!("Invalid value type for number"),
-        }
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Number(n) => write!(f, "{}", n),
-            Value::None => write!(f, "()"),
-        }
-    }
-}
-
 pub fn interpret(ast: &Node) -> Result<(), Error> {
-    inner_interpret(ast, &mut vec![]).map(|_| ())
+    inner_interpret(ast, &mut HashMap::new()).map(|_| ())
 }
 
-fn inner_interpret(ast: &Node, functions: &mut Vec<UserDefinedFunction>) -> Result<Value, Error> {
+fn inner_interpret(ast: &Node, vars: &mut HashMap<Token, Value>) -> Result<Value, Error> {
     match ast {
         Node::Number(n) => Ok(Value::from_token(n)),
         Node::Call(func, args, _) => {
             let args = args
                 .iter()
-                .map(|a| inner_interpret(a, functions))
+                .map(|a| inner_interpret(a, vars))
                 .collect::<Vec<_>>();
             let mut new_args = Vec::with_capacity(args.capacity());
             for arg in args {
                 new_args.push(arg?);
             }
-            let ret = if let Some(func) = functions.iter().rev().find(|f| f.name() == func) {
+            let ret = if let Some(func) = vars.get(func) {
+                let func = if let Value::Function(f) = func {
+                    f
+                } else {
+                    unreachable!();
+                };
                 let mut ret = Value::None;
                 for statement in &func.body().clone() {
-                    ret = inner_interpret(statement, functions)?;
+                    ret = inner_interpret(statement, vars)?;
                 }
                 ret
             } else {
@@ -65,17 +39,18 @@ fn inner_interpret(ast: &Node, functions: &mut Vec<UserDefinedFunction>) -> Resu
             };
             Ok(ret)
         }
-        Node::Define(f) => {
-            functions.push(f.clone());
+        Node::Define(t, func) => {
+            vars.insert(t.clone(), Value::Function(func.clone()));
             Ok(Value::None)
         }
         Node::Statements(statements, _) => {
             let mut ret = Value::None;
             for statement in statements {
-                ret = inner_interpret(statement, functions)?;
+                ret = inner_interpret(statement, vars)?;
             }
             Ok(ret)
         }
+        Node::Function(_, _, _) => todo!(),
     }
 }
 

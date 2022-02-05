@@ -4,7 +4,11 @@ mod error;
 mod functions;
 mod interpreter;
 mod lexer;
+mod node;
 mod parser;
+mod scope;
+mod token;
+mod value;
 
 const KEYWORDS: [&str; 1] = ["Int"];
 static DEFINED_WORDS: [BuiltInFunction; 5] = [
@@ -22,6 +26,6 @@ pub fn run(contents: &str, file: &str) -> Result<(), error::Error> {
     //     tokens.iter().map(|t| (**t).clone()).collect::<Vec<_>>()
     // );
     let ast = parser::parse(&tokens)?;
-    // println!("{}", ast);
+    println!("{}", ast);
     interpreter::interpret(&ast)
 }

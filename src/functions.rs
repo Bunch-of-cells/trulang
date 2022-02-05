@@ -1,23 +1,17 @@
 use std::fmt;
 
-use crate::{lexer::Token, parser::Node};
+use crate::{node::Node, token::Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserDefinedFunction {
-    name: Token,
     params: Vec<(Type, Token)>,
     ret: Type,
     body: Vec<Node>,
 }
 
 impl UserDefinedFunction {
-    pub fn new(name: Token, params: Vec<(Type, Token)>, ret: Type, body: Vec<Node>) -> Self {
-        Self {
-            name,
-            params,
-            ret,
-            body,
-        }
+    pub fn new(params: Vec<(Type, Token)>, ret: Type, body: Vec<Node>) -> Self {
+        Self { params, ret, body }
     }
 
     pub fn params(&self) -> &[(Type, Token)] {
@@ -28,12 +22,14 @@ impl UserDefinedFunction {
         &self.ret
     }
 
-    pub fn name(&self) -> &Token {
-        &self.name
-    }
-
     pub fn body(&self) -> &Vec<Node> {
         &self.body
+    }
+}
+
+impl fmt::Display for UserDefinedFunction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -66,7 +62,7 @@ impl BuiltInFunction {
 pub enum Type {
     Number,
     None,
-    Function(Vec<Type>),
+    Function(Vec<Type>, Box<Type>),
 }
 
 impl fmt::Display for Type {
