@@ -20,6 +20,7 @@ pub enum TokenType {
     RBracket,
     CurlyArrow,
     Bang,
+    Question,
     Eof,
 }
 
@@ -88,6 +89,7 @@ impl fmt::Display for Token {
                 TokenType::RBracket => Cow::Borrowed("]"),
                 TokenType::CurlyArrow => Cow::Borrowed("~>"),
                 TokenType::Bang => Cow::Borrowed("!"),
+                TokenType::Question => Cow::Borrowed("?"),
                 TokenType::Eof => Cow::Borrowed("EOF"),
             }
         )

@@ -29,7 +29,16 @@ impl UserDefinedFunction {
 
 impl fmt::Display for UserDefinedFunction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(
+            f,
+            "{} ~> [{}]",
+            self.params
+                .iter()
+                .map(|a| format!("[{}]", a.0))
+                .collect::<Vec<String>>()
+                .join(" "),
+            self.ret,
+        )
     }
 }
 
@@ -58,15 +67,56 @@ impl BuiltInFunction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Type {
     Number,
     None,
+    Any,
+    Bool,
     Function(Vec<Type>, Box<Type>),
+}
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (_, Type::Any)
+            | (Type::Any, _)
+            | (Type::Number, Type::Number)
+            | (Type::Bool, Type::Bool)
+            | (Type::None, Type::None) => true,
+            (Type::Function(a, b), Type::Function(c, d)) => {
+                if a.len() != c.len() {
+                    return false;
+                }
+                for (a, c) in a.iter().zip(c.iter()) {
+                    if !a.eq(c) {
+                        return false;
+                    }
+                }
+                b.eq(d)
+            }
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Type::Number => write!(f, "Int"),
+            Type::Bool => write!(f, "Bool"),
+            Type::None => write!(f, "None"),
+            Type::Any => write!(f, "?"),
+            Type::Function(params, ret) => write!(
+                f,
+                "{} ~> [{}]",
+                params
+                    .iter()
+                    .map(|a| format!("[{}]", a))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                ret
+            ),
+        }
     }
 }

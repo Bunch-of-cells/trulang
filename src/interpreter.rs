@@ -23,15 +23,19 @@ fn inner_interpret(ast: &Node, vars: &mut HashMap<Token, Value>) -> Result<Value
             for arg in args {
                 new_args.push(arg?);
             }
-            let ret = if let Some(func) = vars.get(func) {
+            let ret = if let Some(func) = vars.get(func).cloned() {
                 let func = if let Value::Function(f) = func {
                     f
                 } else {
                     unreachable!();
                 };
+                let mut new = vars.clone();
+                for ((_, p), a) in func.params().iter().zip(new_args.iter()) {
+                    new.insert(p.clone(), a.clone());
+                }
                 let mut ret = Value::None;
                 for statement in &func.body().clone() {
-                    ret = inner_interpret(statement, vars)?;
+                    ret = inner_interpret(statement, &mut new)?;
                 }
                 ret
             } else {
@@ -40,17 +44,43 @@ fn inner_interpret(ast: &Node, vars: &mut HashMap<Token, Value>) -> Result<Value
             Ok(ret)
         }
         Node::Define(t, func) => {
-            vars.insert(t.clone(), Value::Function(func.clone()));
+            let node = inner_interpret(func, vars)?;
+            vars.insert(t.clone(), node);
             Ok(Value::None)
         }
-        Node::Statements(statements, _) => {
+        Node::Statements(statements, ..) => {
+            let mut new = vars.clone();
             let mut ret = Value::None;
             for statement in statements {
-                ret = inner_interpret(statement, vars)?;
+                ret = inner_interpret(statement, &mut new)?;
             }
             Ok(ret)
         }
-        Node::Function(_, _, _) => todo!(),
+        Node::Function(f, _) => Ok(Value::Function(f.clone())),
+        Node::FuncAccess(func, _, _) => Ok(if let Some(func) = vars.get(func) {
+            if let Value::Function(_) = func {
+                func.clone()
+            } else {
+                unreachable!();
+            }
+        } else {
+            Value::FuncAccess(func.clone())
+        }),
+        Node::Var(t, _) => Ok(if let Some(var) = vars.get(t) {
+            var.clone()
+        } else {
+            unreachable!();
+        }),
+        Node::If(cond, then, else_, _) => {
+            if match inner_interpret(cond, vars)? {
+                Value::Bool(b) => b,
+                _ => unreachable!(),
+            } {
+                inner_interpret(then, vars)
+            } else {
+                inner_interpret(else_, vars)
+            }
+        }
     }
 }
 
@@ -103,6 +133,24 @@ fn get_func(name: &Token) -> Box<dyn FnOnce(&[Value]) -> Result<Value, Error>> {
                     }
                 );
                 Ok(Value::None)
+            }),
+            "?" => Box::new(|a| {
+                let (&a, b, c) = match a {
+                    [Value::Bool(a), b, c] => (a, b.clone(), c.clone()),
+                    _ => unreachable!(),
+                };
+                if a {
+                    Ok(b)
+                } else {
+                    Ok(c)
+                }
+            }),
+            "==" => Box::new(|a| {
+                let (a, b) = match a {
+                    [a, b] => (a, b),
+                    _ => unreachable!(),
+                };
+                Ok(Value::Bool(a == b))
             }),
             _ => unreachable!("Function : {name} not implemented"),
         },

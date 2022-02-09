@@ -11,6 +11,8 @@ use crate::{
 pub enum Value {
     Number(OrderedFloat<f64>),
     Function(UserDefinedFunction),
+    FuncAccess(Token),
+    Bool(bool),
     None,
 }
 
@@ -44,9 +46,11 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Value::Bool(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),
             Value::None => write!(f, "()"),
             Value::Function(func) => write!(f, "{}", func),
+            Value::FuncAccess(func) => write!(f, "{}", func),
         }
     }
 }

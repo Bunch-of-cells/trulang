@@ -1,3 +1,7 @@
-y : [ Int ] x ~> [ Int ] | 6 |
-z : [ [ Int ] ~> Int ] x ~> [ Int ] | y |
-. z y
+factorial : [Int] x ~> [Int] | 0 |
+factorial : [Int] x ~> [Int] | ? == x 0 1 * factorial - x 1 x |
+
+factorial2 : [Int] x ~> [Int] | 0 |
+factorial2 : [Int] x ~> [Int] | ? == x 0 1 * x factorial - x 1 |
+
+. == factorial2 8 factorial 8

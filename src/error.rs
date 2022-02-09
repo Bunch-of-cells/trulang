@@ -74,4 +74,9 @@ impl Position {
             file,
         }
     }
+
+    pub fn merge(&mut self, other: &Self) {
+        self.line_end = other.line_end;
+        self.column_end = other.column_end;
+    }
 }

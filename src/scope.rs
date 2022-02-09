@@ -2,7 +2,7 @@ use crate::{functions::Type, token::Token, DEFINED_WORDS};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    defined: Vec<(Token, Vec<Type>, Type)>,
+    defined: Vec<(Token, Type)>,
     scopes: Vec<Scope>,
 }
 
@@ -24,17 +24,17 @@ impl Scope {
         self.scopes.push(scope);
     }
 
-    pub fn define(&mut self, function: (Token, Vec<Type>, Type)) {
-        self.defined.push(function);
+    pub fn define(&mut self, node: (Token, Type)) {
+        self.defined.push(node);
     }
 
-    pub fn find(&self, function: &Token) -> Option<(&[Type], &Type)> {
-        match self.defined.iter().rev().find(|(f, ..)| f == function) {
-            Some((_, p, r)) => Some((p, r)),
+    pub fn find(&self, token: &Token) -> Option<Type> {
+        match self.defined.iter().rev().find(|(f, ..)| f == token) {
+            Some((_, t)) => Some(t.clone()),
             None => DEFINED_WORDS
                 .iter()
-                .find(|f| **function == f.name())
-                .map(|f| (f.params(), f.ret())),
+                .find(|f| **token == f.name())
+                .map(|f| Type::Function(f.params().to_vec(), Box::new(f.ret().clone()))),
         }
     }
 }

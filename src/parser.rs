@@ -90,6 +90,7 @@ impl Parser<'_> {
         let mut ret = Type::None;
         while *self.current != end_token {
             let expr = self.expression(&mut new)?;
+            println!("{expr} {end_token:?}");
             ret = expr.get_type();
             statements.push(expr);
         }
@@ -107,16 +108,90 @@ impl Parser<'_> {
             }
             TokenType::Word(_) => {
                 if matches!(self.peek(), Some(t) if **t == TokenType::Colon) {
-                    self.define_function(scope)
+                    self.advance();
+                    self.advance();
+                    let node = self.expression(scope)?;
+                    scope.define((token.clone(), node.get_type()));
+                    Ok(Node::Define(token, Box::new(node)))
                 } else {
-                    self.get_function(scope, token)
+                    let t = match scope.find(&self.current) {
+                        Some(t) => t,
+                        None => {
+                            return Err(Error::new(
+                                ErrorType::UndefinedFunction,
+                                self.current.position().clone(),
+                                format!("Undefined Function : {}", self.current),
+                            ))
+                        }
+                    };
+                    match t {
+                        Type::Function(params, ret) => {
+                            let mut args = Vec::new();
+                            self.advance();
+                            if *self.current == TokenType::Bang {
+                                self.advance();
+                                Ok(Node::FuncAccess(token, params, (*ret).clone()))
+                            } else {
+                                for ty in params {
+                                    let expr = self.expression(scope)?;
+                                    if expr.get_type() != ty {
+                                        return Err(Error::new(
+                                            ErrorType::TypeError,
+                                            self.current.position().clone(),
+                                            format!(
+                                                "Expected type {}, but got {}",
+                                                ty,
+                                                expr.get_type()
+                                            ),
+                                        ));
+                                    }
+                                    args.push(expr);
+                                }
+                                Ok(Node::Call(token, args, *ret))
+                            }
+                        }
+                        _ => {
+                            self.advance();
+                            Ok(Node::Var(token, t))
+                        }
+                    }
                 }
             }
             TokenType::LBracket => self.define_function(scope),
             TokenType::Pipe => {
+                let mut s = self.current.position().clone();
                 self.advance();
                 let (statements, ret) = self.statements(scope, TokenType::Pipe)?;
-                Ok(Node::Statements(statements, ret))
+                s.merge(self.current.position());
+                Ok(Node::Statements(statements, ret, s))
+            }
+            TokenType::Question => {
+                let mut s = self.current.position().clone();
+                self.advance();
+                let condition = self.expression(scope)?;
+                if condition.get_type() != Type::Bool {
+                    return Err(Error::new(
+                        ErrorType::TypeError,
+                        self.current.position().clone(),
+                        "Expected bool".to_string(),
+                    ));
+                }
+                let then = self.expression(scope)?;
+                let else_ = self.expression(scope)?;
+                if then.get_type() != else_.get_type() {
+                    return Err(Error::new(
+                        ErrorType::TypeError,
+                        else_.position().clone(),
+                        format!("Branches of an if statement must have same types, expected {}, found {}", then.get_type(), else_.get_type()),
+                    ));
+                }
+                s.merge(self.current.position());
+                Ok(Node::If(
+                    Box::new(condition),
+                    Box::new(then),
+                    Box::new(else_),
+                    s,
+                ))
             }
             _ => Err(Error::new(
                 ErrorType::SyntaxError,
@@ -127,17 +202,15 @@ impl Parser<'_> {
     }
 
     fn define_function(&mut self, scope: &mut Scope) -> ParseResult {
-        let token = self.current.clone();
+        let mut s = self.current.position().clone();
         let mut params = vec![];
         let mut ret = None;
-        self.advance();
-        self.advance();
         while *self.current != TokenType::Pipe {
             if *self.current != TokenType::LBracket {
                 return Err(Error::new(
                     ErrorType::SyntaxError,
                     self.current.position().clone(),
-                    "Expected '['".to_string(),
+                    format!("Expected '[', found '{}'", self.current),
                 ));
             }
             self.advance();
@@ -178,7 +251,7 @@ impl Parser<'_> {
                     return Err(Error::new(
                         ErrorType::SyntaxError,
                         self.current.position().clone(),
-                        "Expected '['".to_string(),
+                        format!("Expected '[', found '{}'", self.current),
                     ));
                 }
                 self.advance();
@@ -212,11 +285,9 @@ impl Parser<'_> {
             }
         };
         self.advance();
-        scope.define((
-            token.clone(),
-            params.iter().map(|a| a.0.clone()).collect(),
-            ret.clone(),
-        ));
+        for (t, p) in params.clone() {
+            scope.define((p, t));
+        }
         let (stmts, ty) = self.statements(scope, TokenType::Pipe)?;
         if ty != ret {
             return Err(Error::new(
@@ -225,47 +296,19 @@ impl Parser<'_> {
                 format!("Return type mismatch, expected {}, found {}", ret, ty),
             ));
         }
-        Ok(Node::Define(
-            token,
+        s.merge(self.current.position());
+        Ok(Node::Function(
             UserDefinedFunction::new(params, ret, stmts),
+            s,
         ))
-    }
-
-    fn get_function(&mut self, scope: &mut Scope, token: Token) -> ParseResult {
-        let (params, ret) = match scope.find(&self.current) {
-            Some((p, r)) => (p.to_owned(), r.clone()),
-            None => {
-                return Err(Error::new(
-                    ErrorType::UndefinedFunction,
-                    self.current.position().clone(),
-                    format!("Undefined Function : {}", self.current),
-                ))
-            }
-        };
-        let mut args = Vec::new();
-        self.advance();
-        if *self.current == TokenType::Bang {
-            Ok(Node::Function(token, params, ret))
-        } else {
-            for ty in params {
-                let expr = self.expression(scope)?;
-                if expr.get_type() != ty {
-                    return Err(Error::new(
-                        ErrorType::TypeError,
-                        self.current.position().clone(),
-                        format!("Expected type {}, but got {}", ty, expr.get_type()),
-                    ));
-                }
-                args.push(expr);
-            }
-            Ok(Node::Call(token, args, ret))
-        }
     }
 }
 
 pub fn parse(tokens: &[Token]) -> ParseResult {
     let mut parser = Parser::new(tokens);
     let mut scope = Scope::new();
+    let mut s = parser.current.position().clone();
     let (stmts, ty) = parser.statements(&mut scope, TokenType::Eof)?;
-    Ok(Node::Statements(stmts, ty))
+    s.merge(parser.current.position());
+    Ok(Node::Statements(stmts, ty, s))
 }
